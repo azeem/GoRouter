@@ -7,7 +7,10 @@
  */
 package router
 
-import "strconv"
+import (
+	"strconv"
+	"regexp"
+)
 
 // An named object that matches a string and extracts
 // a value.
@@ -78,4 +81,27 @@ func (matcher IntegerMatcher)Match(target string) (status bool, value interface 
 		return false, nil
 	}
 	return true, int(i)
+}
+
+var AlphaNumeric = regexp.MustCompile("^[\\w\\d_]+$")
+
+type WordMatcher struct {
+	Named
+	pattern *regexp.Regexp
+}
+
+func Word() WordMatcher {
+	return WordMatcher{pattern:AlphaNumeric}
+}
+
+func (wordMatcher WordMatcher)Pattern(pattern *regexp.Regexp) WordMatcher {
+	wordMatcher.pattern = pattern
+	return wordMatcher
+}
+
+func (wordMatcher WordMatcher)Match(target string) (status bool, value interface{}) {
+	if wordMatcher.pattern.MatchString(target) {
+		return true, target
+	}
+	return false, nil
 }

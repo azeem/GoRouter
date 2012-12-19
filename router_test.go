@@ -28,6 +28,16 @@ func testRoute(t *testing.T, title string, route *Route, req *http.Request, vars
 	}
 }
 
+func testGen(t *testing.T, title string, route *Route, vars map[string]interface {}, expectedUrl string) {
+	if genUrl, err := route.Url(vars); err != nil {
+		t.Error(fmt.Sprintf("Route(%s) Url generation failed with error: %s", title, err))
+	} else {
+		if genUrl.String() != expectedUrl {
+			t.Error(fmt.Sprintf("Route(%s) Generated url %s mismatches with %s", title, genUrl.String(), expectedUrl))
+		}
+	}
+}
+
 func makeRequest(method string, urlStr string) *http.Request {
 	req, err := http.NewRequest(method, urlStr, nil)
 	if err != nil {
@@ -51,4 +61,14 @@ func TestRoute(t *testing.T) {
 		NewRoute().Path("abc", "def").Method("POST").Handle("handle"),
 		makeRequest("POST", "http://example.com/abc/def"),
 		nil, "handle")
+
+	testRoute(t, "Host test",
+		NewRoute().Path("abc", "def").Host("example", "com").Handle("handle"),
+		makeRequest("GET", "http://example.com/abc/def"),
+		nil, "handle")
+}
+
+func TestGen(t *testing.T) {
+	testGen(t, "ExactMatch",
+		NewRoute().Host("example", "com").Path("abc", "def").Scheme("http"), nil, "http://example.com/abc/def")
 }
