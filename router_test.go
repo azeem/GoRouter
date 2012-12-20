@@ -52,6 +52,10 @@ func TestRoute(t *testing.T) {
 		makeRequest("GET", "http://example.com/abc/def"),
 		nil, 123)
 
+	testRoute(t, "Empty Route",
+		NewRoute().Handle(123),
+		makeRequest("GET", "http://example.com/abc"), nil, 123)
+
 	testRoute(t, "Integer Test",
 		NewRoute().Path("abc", "def", Integer().Name("Test"), "end").Handle("Hello World"),
 		makeRequest("GET", "http://example.com/abc/def/234/end"),

@@ -56,7 +56,11 @@ func (routes Routes)Url(name string, vars map[string]interface {}) (genUrl *url.
 
 // An http request Route
 type Route struct {
-	reqMatchers []HttpRequestMatcher
+	methodMatcher HttpRequestMatcher
+	schemeMatcher HttpRequestMatcher
+	hostMatcher HttpRequestMatcher
+	pathMatcher HttpRequestMatcher
+
 	handle interface{}
 	name string
 }
@@ -76,7 +80,7 @@ func NewRoute() *Route {
 func (route *Route)Match(req *http.Request) (result *MatchResult) {
 	match := &MatchResult{}
 	match.Vars = make(map[string]interface {})
-	for _, reqMatcher := range(route.reqMatchers) {
+	for _, reqMatcher := range(getReqMatchers(route)) {
 		if status, vars := reqMatcher.Match(req); status {
 			for key, value := range(vars) {
 				match.Vars[key] = value
@@ -95,7 +99,7 @@ func (route *Route)GetName() (name string) {
 
 func (route *Route)Url(vars map[string]interface {}) (genUrl *url.URL, err error) {
 	genUrl = &url.URL{}
-	for _, reqMatcher := range(route.reqMatchers) {
+	for _, reqMatcher := range(getReqMatchers(route)) {
 		if genErr := reqMatcher.Generate(genUrl, vars); genErr != nil {
 			return nil, genErr
 		}
@@ -125,7 +129,7 @@ func (route *Route)Path(elems ...interface{}) (*Route) {
 	for _, elem := range(elems) {
 		path.elemMatchers = append(path.elemMatchers, makeMatcher(elem))
 	}
-	route.reqMatchers = append(route.reqMatchers, path)
+	route.pathMatcher = path
 	return route
 }
 
@@ -135,20 +139,20 @@ func (route *Route)Host(elems ...interface {}) (*Route) {
 	for _, elem := range(elems) {
 		hostMatcher.elemMatchers = append(hostMatcher.elemMatchers, makeMatcher(elem))
 	}
-	route.reqMatchers = append(route.reqMatchers, hostMatcher)
+	route.hostMatcher = hostMatcher
 	return route
 }
 
 // creates a new Method matcher
 func (route *Route)Method(method string) (*Route) {
 	methodMatcher := &MethodMatcher{method:method}
-	route.reqMatchers = append(route.reqMatchers, methodMatcher)
+	route.methodMatcher = methodMatcher
 	return route
 }
 
 func (route *Route)Scheme(scheme string) (*Route) {
 	schemeMatcher := &SchemeMatcher{scheme:scheme}
-	route.reqMatchers = append(route.reqMatchers, schemeMatcher)
+	route.schemeMatcher = schemeMatcher
 	return route
 }
 
@@ -296,6 +300,25 @@ func makeMatcher(value interface{}) (matcher Matcher) {
 		return Exact(strValue)
 	}
 	panic("Invalid path element type")
+}
+
+func getReqMatchers(route *Route) []HttpRequestMatcher {
+	reqMatchers := []HttpRequestMatcher{}
+
+	if route.methodMatcher != nil {
+		reqMatchers = append(reqMatchers, route.methodMatcher)
+	}
+	if route.schemeMatcher != nil {
+		reqMatchers = append(reqMatchers, route.schemeMatcher)
+	}
+	if route.hostMatcher != nil {
+		reqMatchers = append(reqMatchers, route.hostMatcher)
+	}
+	if route.pathMatcher != nil {
+		reqMatchers = append(reqMatchers, route.pathMatcher)
+	}
+
+	return reqMatchers
 }
 
 // finds the minimum between two ints
