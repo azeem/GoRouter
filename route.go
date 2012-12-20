@@ -61,6 +61,8 @@ type Route struct {
 	hostMatcher HttpRequestMatcher
 	pathMatcher HttpRequestMatcher
 
+	subRoutes Routes
+
 	handle interface{}
 	name string
 }
@@ -164,6 +166,7 @@ func (route *Route)Scheme(scheme string) (*Route) {
 type HttpRequestMatcher interface {
 	Match(req *http.Request) (status bool, vars map[string]interface{})
 	Generate(url *url.URL, vars map[string]interface{}) (err error)
+	SubRequest(req *http.Request)
 }
 
 // An HttpRequestMatcher that matches
@@ -192,6 +195,10 @@ func (hostMatcher *HostMatcher) Generate(genUrl *url.URL, vars map[string]interf
 	return nil
 }
 
+func (hostMatcher *HostMatcher)SubRequest(req *http.Request) {
+	return
+}
+
 // An HttpRequestMatcher that matches
 // http request uri path
 type PathMatcher struct {
@@ -199,11 +206,11 @@ type PathMatcher struct {
 }
 
 // matches http.Request.RequestURI
-func (path *PathMatcher) Match(req *http.Request) (status bool, vars map[string]interface{}) {
+func (pathMatcher *PathMatcher) Match(req *http.Request) (status bool, vars map[string]interface{}) {
 	vars = make(map[string]interface {})
 	elems := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	for i := 0;i < intMin(len(path.elemMatchers), len(elems)); i++ {
-		if !extractMatchValue(path.elemMatchers[i], elems[i], vars) {
+	for i := 0;i < intMin(len(pathMatcher.elemMatchers), len(elems)); i++ {
+		if !extractMatchValue(pathMatcher.elemMatchers[i], elems[i], vars) {
 			return false, nil
 		}
 	}
@@ -211,8 +218,8 @@ func (path *PathMatcher) Match(req *http.Request) (status bool, vars map[string]
 }
 
 // generates url path
-func (path *PathMatcher)Generate(genUrl *url.URL, vars map[string]interface {}) (err error) {
-	pathElems, err := generateMatchValues(path.elemMatchers, vars)
+func (pathMatcher *PathMatcher)Generate(genUrl *url.URL, vars map[string]interface {}) (err error) {
+	pathElems, err := generateMatchValues(pathMatcher.elemMatchers, vars)
 	if err != nil {
 		return err
 	}
@@ -220,6 +227,10 @@ func (path *PathMatcher)Generate(genUrl *url.URL, vars map[string]interface {}) 
 	return nil
 }
 
+func (pathMatcher *PathMatcher)SubRequest(req *http.Request) {
+	pathElems := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+	req.URL.Path = "/" + strings.Join(pathElems[len(pathMatcher.elemMatchers):], "/")
+}
 
 // An HttpMethodMatcher that matches
 // http request method
@@ -240,6 +251,10 @@ func (methodMatcher *MethodMatcher) Generate(genUrl *url.URL, vars map[string]in
 	return nil
 }
 
+func (methodMatcher *MethodMatcher)SubRequest(req *http.Request) {
+	return
+}
+
 // An HttpMethodMatcher that matches
 // http request method
 type SchemeMatcher struct {
@@ -258,6 +273,10 @@ func (schemeMatcher *SchemeMatcher) Match(req *http.Request) (status bool, vars 
 func (schemeMatcher *SchemeMatcher) Generate(genUrl *url.URL, vars map[string]interface {}) (err error) {
 	genUrl.Scheme = schemeMatcher.scheme
 	return nil
+}
+
+func (schemeMatcher *SchemeMatcher)SubRequest(req *http.Request) {
+	return
 }
 
 ///////////////////////
